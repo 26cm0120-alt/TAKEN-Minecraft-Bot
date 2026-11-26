@@ -1,0 +1,12 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {miningTicks} from './mining-speed.js';
+test('pickaxe speed follows tool tier and mineral material fallback',()=>{const b={name:'deepslate',hardness:3,material:'mineable/pickaxe'};assert.equal(miningTicks(b,'wooden_pickaxe'),45);assert.equal(miningTicks(b,'stone_pickaxe'),23);assert.equal(miningTicks(b,'iron_pickaxe'),15);assert.equal(miningTicks(b,'diamond_pickaxe'),12);assert.equal(miningTicks(b,'netherite_pickaxe'),10);assert.equal(miningTicks({name:'iron_ore',hardness:3,material:'incorrect_for_wooden_tool'},'iron_pickaxe'),15);});
+test('shovel and axe are faster than hands on their own materials',()=>{const dirt={name:'dirt',hardness:.5,material:'mineable/shovel'},wood={name:'oak_log',hardness:2,material:'mineable/axe'};assert.equal(miningTicks(dirt,'bare_hand'),15);assert.equal(miningTicks(dirt,'diamond_shovel'),2);assert.equal(miningTicks(wood,'diamond_axe'),8);assert.equal(miningTicks(wood,'diamond_pickaxe'),60);});
+test('underwater and airborne penalties are retained; limits remain bounded',()=>{const b={name:'deepslate',hardness:3,material:'mineable/pickaxe'};assert.equal(miningTicks(b,'diamond_pickaxe',{submerged:true}),57);assert.equal(miningTicks(b,'diamond_pickaxe',{grounded:false}),57);assert.equal(miningTicks({name:'stone',hardness:999},'bare_hand'),1200);});
+
+test('server break notification ends the mining timer early and still verifies block',async()=>{
+ const {RealmControls}=await import('./realm-controls.js'),{EventEmitter}=await import('node:events');const client=new EventEmitter();client.queue=()=>{};const c=new RealmControls(client);c.ready=true;c.health=20;c.position={x:.5,y:65.62,z:.5};let broken=false,waits=0,confirmed=0;
+ c.items[0]={network_id:c.registry.itemsByName.diamond_pickaxe.id,count:1};c.block=p=>{const pos={x:Math.floor(p.x),y:Math.floor(p.y),z:Math.floor(p.z)},target=pos.x===1&&pos.y===64&&pos.z===0;return {name:target&&!broken?'deepslate':'air',position:pos,boundingBox:target&&!broken?'block':'empty',runtimeId:1};};c.walkable=()=>true;c.goto=async()=>{};c.prepareMiningTool=async()=>0;c.look=()=>{};c.wait=async()=>{waits++;broken=true;};c.confirmBlock=async(p,predicate)=>{confirmed++;assert.ok(predicate(c.block(p)));};c.pickup.collect=async()=>({total:0});
+ const r=await c.mine('deepslate',1,new AbortController().signal,{targetPosition:{x:1,y:64,z:0}});assert.equal(r.broken,1);assert.equal(confirmed,1);assert.equal(waits,2);assert.ok(!c.pendingActions.some(a=>a.action==='predict_break'));
+});

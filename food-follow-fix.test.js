@@ -1,0 +1,10 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {directPlan} from './action-agent.js';
+import {RealmControls} from './realm-controls.js';
+import {AutoSurvival} from './auto-survival.js';
+import {EventEmitter} from 'node:events';
+test('missing food retries only after inventory changes',async()=>{let now=0,calls=0;const client=new EventEmitter(),c={ready:true,health:20,food:16,position:{x:0,y:64,z:0},items:[],slot:0,stop(){},eat:async()=>{calls++;throw Error('食料がありません');}};const auto=new AutoSurvival(client,c,{now:()=>now});await auto.tick();now=130000;await auto.tick();assert.equal(calls,1);c.items=[{network_id:1,count:1}];await auto.tick();assert.equal(calls,2);client.emit('close');});
+test('follow accepts Japanese seconds with and without space without model',()=>{for(const t of ['follow10秒','follow 10秒','follow 10','follow 10seconds'])assert.equal(directPlan(t).actions[0].seconds,10);});
+test('named food count is deterministic',()=>{assert.deepEqual(directPlan('焼き羊肉4個食べて').actions[0],{type:'eat',item:'cooked_mutton',count:4});assert.equal(directPlan('cooked_salmonを食べて').actions[0].item,'cooked_salmon');});
+test('food in inventory is transferred before use and verifies food gain',async()=>{const c=Object.create(RealmControls.prototype);Object.assign(c,{food:16,items:Array(36).fill(null),registry:{items:{1:{name:'cooked_salmon'}}},position:{x:0,y:65.62,z:0},ready:true,health:20,check(){},select(s){assert.equal(s,0);},wait:async()=>{c.food=20;},client:{queue(){}},crafting:{equipInventorySlot:async s=>{assert.equal(s,12);c.items[0]=c.items[12];return 0;}}});c.items[12]={network_id:1,count:2};const r=await c.eat(new AbortController().signal,{item:'cooked_salmon',count:1});assert.equal(r.eaten,1);assert.equal(r.food,20);});

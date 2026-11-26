@@ -1,0 +1,20 @@
+{
+  "name": "taken-bedrock-realms",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env index.js",
+    "test": "node run-tests.js"
+  },
+  "dependencies": {
+    "bedrock-protocol": "3.61.0",
+    "minecraft-data": "3.119.0",
+    "prismarine-chunk": "^1.41.0",
+    "prismarine-registry": "^1.12.0",
+    "vec3": "^0.2.0"
+  },
+  "overrides": {
+    "prismarine-xbox-services": "https://codeload.github.com/PrismarineJS/prismarine-xbox-services/tar.gz/052a9676f514c5470a723651b1dbb1adcf238944"
+  }
+}

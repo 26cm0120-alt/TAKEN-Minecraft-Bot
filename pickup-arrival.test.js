@@ -1,0 +1,7 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {EventEmitter} from 'node:events';
+import {RealmPickup} from './realm-pickup.js';
+function fixture(){const client=new EventEmitter(),c={client,items:[],registry:{items:{1:{name:'cobbled_deepslate',stackSize:64}}},feet:()=>({x:.5,y:64,z:.5}),check:s=>s?.throwIfAborted(),stop(){},ready:true,health:20};const p=new RealmPickup(c);client.emit('inventory_content',{window_id:0,input:[]});return {client,c,p};}
+test('delayed mined item actor is collected regardless of block/drop name difference',async()=>{const f=fixture(),before=f.p.snapshot(),now=Date.now;let time=0;Date.now=()=>time;f.c.wait=async()=>{time+=100;if(time===300)f.client.emit('add_item_entity',{runtime_entity_id:7n,entity_id_self:70n,item:{network_id:1,count:1},position:{x:1.5,y:64,z:.5}});};f.c.walkable=()=>true;f.p.approach=async()=>{f.c.items=[{network_id:1,count:1}];};try{const r=await f.p.collect({positions:[{x:1,y:64,z:0}],baseline:before,optional:true});assert.equal(r.total,1);assert.equal(r.collected[0].item,'cobbled_deepslate');assert.equal(r.attempts,1);}finally{Date.now=now;}});
+test('missing actor and inventory increase produce explicit diagnostic after bounded wait',async()=>{const f=fixture(),now=Date.now;let time=0;Date.now=()=>time;f.c.wait=async()=>{time+=100;};try{const r=await f.p.collect({positions:[{x:1,y:64,z:0}],optional:true});assert.equal(r.total,0);assert.equal(r.attempts,0);assert.match(r.skipped[0],/落下アイテム通知/);assert.equal(time,2500);}finally{Date.now=now;}});
