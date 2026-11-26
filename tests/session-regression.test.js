@@ -1,0 +1,75 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {EventEmitter} from 'node:events';
+import {createRequire} from 'node:module';
+import {RealmControls,inputPacket} from '../src/realm-controls.js';
+const require=createRequire(import.meta.url);
+const {createSerializer,createDeserializer}=require('../node_modules/bedrock-protocol/src/transforms/serializer.js');
+test('confirmed own death initiates bounded respawn even when state zero never arrives',()=>{
+ let now=0;const c=new EventEmitter(),sent=[];c.queue=(name,params)=>sent.push({name,params});const controls=new RealmControls(c,'1.26.60',{now:()=>now});controls.ready=true;controls.entityId=42n;controls.position={x:1.5,y:65.62,z:2.5};
+ controls.observeHealth(20);controls.observeHealth(0);controls.step();assert.equal(sent.length,0);
+ now=1000;controls.step();assert.equal(sent.length,1);assert.equal(sent[0].name,'respawn');assert.equal(sent[0].params.state,2);assert.equal(controls.respawning,true);
+ c.emit('respawn',{state:0,runtime_entity_id:0n,position:controls.position});assert.equal(sent.length,1);
+ now=6000;controls.step();assert.equal(sent.length,2);c.emit('close');now=20000;controls.step();assert.equal(sent.length,2);
+});
+test('missing respawn readiness retries at bounded intervals without movement and reports timeout once',()=>{
+ let now=0;const c=new EventEmitter(),sent=[],notices=[];c.queue=(name,params)=>sent.push({name,params});c.on('taken_notice',p=>notices.push(p));
+ const controls=new RealmControls(c,'1.26.60',{now:()=>now});controls.entityId=42n;controls.ready=true;controls.health=0;controls.position={x:1,y:65.62,z:2};
+ c.emit('respawn',{state:0,runtime_entity_id:0n,position:controls.position});
+ now=4999;controls.step();assert.equal(sent.length,1);
+ now=5000;controls.step();assert.equal(sent.length,2);
+ now=10000;controls.step();assert.equal(sent.length,3);
+ now=15000;controls.step();now=30000;controls.step();assert.equal(sent.length,3);assert.equal(notices.length,1);assert.ok(sent.every(p=>p.name==='respawn'&&p.params.state===2));assert.equal(controls.health,0);
+ c.emit('respawn',{state:1,runtime_entity_id:0n,position:{x:91.5,y:65.62,z:542.5}});assert.equal(controls.respawnAttempts,0);assert.equal(controls.respawnTimeoutNotified,false);
+ c.emit('close');now=40000;controls.step();assert.equal(sent.length,4);
+});
+test('loading completion, player input clock and server-data acknowledgment encode on 1.26.60',()=>{
+  const c=new EventEmitter(),sent=[];c.queue=(name,params)=>sent.push({name,params});
+  const controls=new RealmControls(c);
+  c.emit('start_game',{itemstates:controls.registry.writeItemStates(),block_network_ids_are_hashes:true,
+    player_position:{x:1.5,y:65.62,z:2.5},runtime_entity_id:1n,current_tick:1000000n});
+  assert.equal(controls.tick,0n);
+  c.emit('spawn');controls.step();c.emit('close');
+  const ser=createSerializer('1.26.60'),de=createDeserializer('1.26.60');
+  const loading=sent.find(p=>p.name==='serverbound_loading_screen');
+  assert.equal(de.parsePacketBuffer(ser.createPacketBuffer(loading)).data.params.type,2);
+  const input=sent.find(p=>p.name==='player_auth_input');
+  const p=de.parsePacketBuffer(ser.createPacketBuffer(input)).data.params;
+  assert.equal(p.tick,1n);
+  assert.ok(p.input_data.includes('received_server_data'));
+  assert.ok(p.input_data.includes('handled_teleport'));
+  assert.ok(inputPacket({x:0,y:0,z:0},2n,{receivedServerData:true}).input_data.includes('received_server_data'));
+});
+test('respawn readiness is acknowledged, waits for server readiness and resets stale movement',()=>{
+  const c=new EventEmitter(),sent=[];c.queue=(name,params)=>sent.push({name,params});
+  const controls=new RealmControls(c);controls.entityId=42n;controls.ready=true;controls.position={x:1,y:64,z:2};
+  controls.walkTarget={x:8,z:8};controls.health=0;
+  c.emit('respawn',{state:0,runtime_entity_id:0n,position:{x:1,y:64,z:2}});
+  assert.equal(sent.length,1);assert.equal(sent[0].name,'respawn');assert.equal(sent[0].params.state,2);
+  c.emit('respawn',{state:0,runtime_entity_id:0n,position:{x:1,y:64,z:2}});
+  assert.equal(sent.length,1,'duplicate state 0 must not repeat the respawn request');assert.equal(controls.walkTarget,null);
+  controls.step();assert.equal(sent.length,1,'dead client must not keep sending movement inputs');
+  assert.throws(()=>controls.check(),/リスポーン/);
+  c.emit('respawn',{state:1,runtime_entity_id:99n,position:{x:1,y:65.62,z:2}});
+  assert.equal(sent.length,1);
+  c.emit('respawn',{state:1,runtime_entity_id:0n,position:{x:1,y:65.62,z:2}});
+  const ser=createSerializer('1.26.60'),de=createDeserializer('1.26.60');
+  const packets=sent.map(p=>de.parsePacketBuffer(ser.createPacketBuffer(p)).data);
+  assert.equal(packets[0].name,'respawn');assert.equal(packets[0].params.state,2);
+  assert.equal(packets[1].name,'player_action');assert.equal(packets[1].params.action,'respawn');
+  assert.equal(packets[1].params.runtime_entity_id,42n);
+  assert.equal(controls.position.y,65.62);assert.equal(controls.health,null);
+  assert.equal(controls.handledTeleport,true);assert.throws(()=>controls.check(),/リスポーン/);
+  c.emit('update_attributes',{runtime_entity_id:42n,attributes:[{name:'minecraft:health',current:20}]});controls.check();
+  controls.step();assert.ok(sent.some(p=>p.name==='player_auth_input'),'movement input resumes after spawn readiness');
+  c.emit('close');
+});
+test('spawn readiness alone never completes a death recovery; stationary input continues and health timeout is reported',()=>{
+ let now=0;const c=new EventEmitter(),sent=[],notices=[];c.queue=(name,params)=>sent.push({name,params});c.on('taken_notice',p=>notices.push(p.message));
+ const controls=new RealmControls(c,'1.26.60',{now:()=>now});controls.entityId=42n;controls.ready=true;controls.position={x:1,y:65.62,z:2};controls.health=0;
+ c.emit('respawn',{state:1,runtime_entity_id:0n,position:{x:91.5,y:65.62,z:542.5}});assert.equal(controls.status().respawning,true);assert.equal(controls.status().respawnAwaitingHealth,true);assert.throws(()=>controls.check(),/リスポーン/);
+ controls.step();assert.equal(sent.at(-1).name,'player_auth_input');assert.deepEqual(sent.at(-1).params.delta,{x:0,y:0,z:0});
+ now=15000;controls.step();now=30000;controls.step();assert.equal(notices.filter(x=>x.includes('体力の回復')).length,1);
+ c.emit('update_attributes',{runtime_entity_id:99n,attributes:[{name:'minecraft:health',current:20}]});assert.equal(controls.respawnAwaitingHealth,true);
+ c.emit('update_attributes',{runtime_entity_id:42n,attributes:[{name:'minecraft:health',current:20}]});assert.equal(controls.status().respawning,false);assert.ok(notices.some(x=>x.includes('91.5, 64.0, 542.5')));controls.check();c.emit('close');
+});

@@ -58,10 +58,10 @@ OLLAMA_MODEL=qwen3.5:2b
 ```text
 RealmsAI起動.bat
   → start-local-ai.ps1（Ollama確認・必要なら起動）
-  → index.js（Microsoft認証、Realm選択、接続）
-  → ai-chat.js（発言者・コマンド受付、待機列、停止、状態確認）
-  → action-agent.js（直接解釈、必要ならLLM、計画検証）
-  → realm-controls.js / 機能別モジュール（実行）
+  → src/index.js（Microsoft認証、Realm選択、接続）
+  → src/ai-chat.js（発言者・コマンド受付、待機列、停止、状態確認）
+  → src/action-agent.js（直接解釈、必要ならLLM、計画検証）
+  → src/realm-controls.js / 機能別モジュール（実行）
   → サーバーの座標・ブロック・所持品更新で結果を確認
   → チャットで結果報告
 ```
@@ -74,30 +74,30 @@ LLMが歩行を毎tick決める構造ではない。LLMは会話と高水準の�
 
 | ファイル | 責務・レビュー時の着眼点 |
 |---|---|
-| `index.js` | 起動、接続、認証案内、イベント登録、終了。過去の26.51用入力番号補正があるため版別条件を確認 |
-| `bedrock-version.js` | 接続版の選択・表記の正規化 |
-| `ai-chat.js` | 日本語チャット、権限、即時状態確認、通常作業と生存行動の連携 |
-| `request-queue.js` | 受付順の待機列、通常失敗後の自動継続、例外時停止、取消・再開 |
-| `action-agent.js` | `directPlan`、LLM用JSONスキーマ、`validatePlan`、実行と結果整形 |
-| `planning-prompt.js` | モデルへの指示、現在状態・所持品の伝達 |
-| `local-ai-request.js` | Ollama HTTP呼び出し、取消、タイムアウト、応答時間ログ |
-| `capabilities.js` | 操作上限、日本語名変換、機能説明。説明文と実処理の一致も確認 |
-| `item-dictionary.js` / `minecraft-dictionary.json` | アイテム・ブロックの日本語名とID |
-| `realm-controls.js` | パケット状態管理、座標、地形キャッシュ、移動、採掘、戦闘、食事、実行分岐 |
-| `step-movement.js` | 足場・身体空間、1段の段差、経路探索、移動予測、ツタ接触 |
-| `long-travel.js` / `surface-swimming.js` / `auto-sprint.js` | 区間移動、水面移動、ダッシュ切替 |
-| `resource-search.js` | 原木・露出鉱石の探索、接近候補、経路失敗の限定的な見直し |
-| `realm-pickup.js` | 落下物追跡、接近、所持品増加の確認 |
-| `realm-crafting.js` / `realm-furnace.js` | クラフト、装備等の所持品操作、精錬 |
-| `mining-tools.js` / `mining-speed.js` | 道具選択・採掘時間 |
-| `branch-mining.js` | 直線・枝道採掘と帰還 |
-| `bed-control.js` / `realm-boat.js` | 就寝・起床、ボート乗降 |
-| `auto-survival.js` | 食事、防衛、安全地点への退避、通常作業への割込み |
-| `autonomous-goal.js` / `adaptive-goal.js` / `goal-evidence.js` | 自律指示、材料からの目標計画、結果に基づく再計画 |
-| `food-supply.js` / `resource-management.js` / `tool-condition.js` | 食料調達・調理、道具補充・耐久判定 |
-| `dragon-planner.js` / `dragon-iron.js` / `dragon-progress.js` | 討伐準備の段階1・2と進捗 |
-| `realm-recovery.js` | 復活待機超過等からの限定的な再接続 |
-| `run-tests.js` | 本体直下の `*.test.js` のみ実行。backups内は対象外 |
+| `src/index.js` | 起動、接続、認証案内、イベント登録、終了。過去の26.51用入力番号補正があるため版別条件を確認 |
+| `src/bedrock-version.js` | 接続版の選択・表記の正規化 |
+| `src/ai-chat.js` | 日本語チャット、権限、即時状態確認、通常作業と生存行動の連携 |
+| `src/request-queue.js` | 受付順の待機列、通常失敗後の自動継続、例外時停止、取消・再開 |
+| `src/action-agent.js` | `directPlan`、LLM用JSONスキーマ、`validatePlan`、実行と結果整形 |
+| `src/planning-prompt.js` | モデルへの指示、現在状態・所持品の伝達 |
+| `src/local-ai-request.js` | Ollama HTTP呼び出し、取消、タイムアウト、応答時間ログ |
+| `src/capabilities.js` | 操作上限、日本語名変換、機能説明。説明文と実処理の一致も確認 |
+| `src/item-dictionary.js` / `src/minecraft-dictionary.json` | アイテム・ブロックの日本語名とID |
+| `src/realm-controls.js` | パケット状態管理、座標、地形キャッシュ、移動、採掘、戦闘、食事、実行分岐 |
+| `src/step-movement.js` | 足場・身体空間、1段の段差、経路探索、移動予測、ツタ接触 |
+| `src/long-travel.js` / `src/surface-swimming.js` / `src/auto-sprint.js` | 区間移動、水面移動、ダッシュ切替 |
+| `src/resource-search.js` | 原木・露出鉱石の探索、接近候補、経路失敗の限定的な見直し |
+| `src/realm-pickup.js` | 落下物追跡、接近、所持品増加の確認 |
+| `src/realm-crafting.js` / `src/realm-furnace.js` | クラフト、装備等の所持品操作、精錬 |
+| `src/mining-tools.js` / `src/mining-speed.js` | 道具選択・採掘時間 |
+| `src/branch-mining.js` | 直線・枝道採掘と帰還 |
+| `src/bed-control.js` / `src/realm-boat.js` | 就寝・起床、ボート乗降 |
+| `src/auto-survival.js` | 食事、防衛、安全地点への退避、通常作業への割込み |
+| `src/autonomous-goal.js` / `src/adaptive-goal.js` / `src/goal-evidence.js` | 自律指示、材料からの目標計画、結果に基づく再計画 |
+| `src/food-supply.js` / `src/resource-management.js` / `src/tool-condition.js` | 食料調達・調理、道具補充・耐久判定 |
+| `src/dragon-planner.js` / `src/dragon-iron.js` / `src/dragon-progress.js` | 討伐準備の段階1・2と進捗 |
+| `src/realm-recovery.js` | 復活待機超過等からの限定的な再接続 |
+| `run-tests.js` | `tests/*.test.js` のみ実行。backups内は対象外 |
 
 ## 6. 実装済み機能と限界
 
@@ -121,7 +121,7 @@ LLMが歩行を毎tick決める構造ではない。LLMは会話と高水準の�
 
 Qwen3.5 2Bを導入し.envを変更。実際の `requestLocalAI` で「オークの原木を3個掘って」をJSON化できた。初回約17秒、うち約16秒がロードだった。これは単一指示のスモークテストであり、自律行動全般の精度保証ではない。
 
-`local-ai-request.js` は既定のゲーム優先時に `keep_alive:0`、`num_ctx:4096`、`num_thread:4`、`think:false` を指定する。毎回のアンロードはロード待ちを増やす一方、GPUメモリをゲームに返す意図がある。常駐化はゲームのFPSとVRAMも測って判断する。
+`src/local-ai-request.js` は既定のゲーム優先時に `keep_alive:0`、`num_ctx:4096`、`num_thread:4`、`think:false` を指定する。毎回のアンロードはロード待ちを増やす一方、GPUメモリをゲームに返す意図がある。常駐化はゲームのFPSとVRAMも測って判断する。
 
 ### レビュー修正（11月17日）
 
@@ -129,7 +129,7 @@ Qwen3.5 2Bを導入し.envを変更。実際の `requestLocalAI` で「オーク
 2. 非同期再接続途中に終了した場合、後から返った接続を閉じる。
 3. 中止済みAI要求は通信開始前に中止する。
 
-回帰テスト: `review-20261117.test.js`。バックアップ: `backups\review-20261117`。
+回帰テスト: `tests/review-20261117.test.js`。バックアップ: `backups\review-20261117`。
 
 ### リスポーン通信順序修正（11月17日）
 
@@ -145,7 +145,7 @@ server respawn state=0
 
 参照: https://levimc.org/bedboo/reference/differences/survival
 同じ接続で2回死亡・復活する模擬シーケンスと、シリアライズを含む既存テストを確認。実Realmで解消したとのユーザー確認はまだない。
-テスト: `respawn-order.test.js` / `session-regression.test.js`。
+テスト: `tests/respawn-order.test.js` / `tests/session-regression.test.js`。
 バックアップ: `backups\respawn-order-20261117`。
 
 ### ツタ・地形判定修正（11月18日）
@@ -155,7 +155,7 @@ server respawn state=0
 - ジャンプ中を含め、登れるブロックへ前進入力を押し続けない。
 - `correct_player_move_prediction`でツタ接触が判明したら前進を停止。既存gotoの限定的な再計画へ戻す。
 
-テスト: `vine-navigation.test.js`（迂回・入力抑止・座標補正・身体空間の4件）。
+テスト: `tests/vine-navigation.test.js`（迂回・入力抑止・座標補正・身体空間の4件）。
 バックアップ: `backups\vine-navigation-20261118`。
 11月18日時点の全体テストは273件成功。ツタ付き原木の伐採改善は引き続き実Realmで確認する。
 
@@ -164,7 +164,7 @@ server respawn state=0
 - Node v26.13.0で変更前273件、衝突判定23件とWP0計測16件の追加後312件、直近は伏せ字・日本語再入力の検証を含め313件成功。
 - WP0は本体に反映済み。補正パケットは同じ入力tickの予測位置と比較する。衝突判定の landing() は着地面の高さと地形の未読込を返す。歩行への組み込みは手順6。
 - 実Realmで「こっちに来て」が3回成功。うち2回は水平約22マス・27マスで、到着時の高さはそれぞれ開始時から−1・＋1。別の木材探索では1区間の補正16回で停止した。成功3回とも server_post_move の受信は0件で、ラグ推定値は得られていない。
-- 現在は[v2手順4](TAKEN_REVIEW_FOR_CODEX.md)。平地20マス5回、ツタ付き原木の伐採1〜3回、階段・スラブ・フェンス・カーペットを含む往復各1回以上の試験一式は未完了。実体が予測位置より先を歩く仮説（H1）の判定は保留。[ログ採取手順](WP0-計測とベースライン採取.md)
+- 現在は[v2手順4](TAKEN_REVIEW_FOR_CODEX.md)。平地20マス5回、ツタ付き原木の伐採1〜3回、階段・スラブ・フェンス・カーペットを含む往復各1回以上の試験一式は未完了。実体が予測位置より先を歩く仮説（H1）の判定は保留。[ログ採取手順](docs/WP0-計測とベースライン採取.md)
 - 実Realmで、伏せ字を検出して再入力を案内する動作を確認。原木は「じゃんぐるのげんぼく」等も登録済み。ひらがなから採掘対象を選ぶ動作は模擬テストで確認。実Realmでのひらがな入力による伐採完了は未確認。
 
 ## 8. 今後のレビューで優先する論点
@@ -176,7 +176,7 @@ server respawn state=0
 5. **復活の実通信。** 模擬サーバーが正しい順序を返すことと、Realmが実際に受理することは別。state、runtime ID、体力更新の順序をログで確認。
 6. **成功条件。** 採掘した数、持ち物に増えた数、相手に渡った数を混同しない。投棄確認だけで相手の受領成功を報告しない。
 7. **モデル精度と応答速度。** 同一状態・同一指示でJSONの正しさ、実在ID、禁止操作、応答時間を比較。曖昧な指示は質問へ戻す。
-8. **認証エラー。** prismarine-auth内部のLiveTokenManagerはinvalid_grantを捕捉して同じコードでポーリングを続ける。index.jsのerrorイベントだけでは内部ループを直ちに停止できない。過去の説明で「正常な承認待ち」としたが、invalid_grantを一律に正常扱いしない。直近は認証成功済み。
+8. **認証エラー。** prismarine-auth内部のLiveTokenManagerはinvalid_grantを捕捉して同じコードでポーリングを続ける。src/index.jsのerrorイベントだけでは内部ループを直ちに停止できない。過去の説明で「正常な承認待ち」としたが、invalid_grantを一律に正常扱いしない。直近は認証成功済み。
 
 ## 9. テストと起動
 
@@ -190,8 +190,8 @@ Set-Location 'C:\mc-server\AI\aibot-realms'
 個別テスト:
 
 ```powershell
-& 'C:\Program Files\nodejs\node.exe' --test vine-navigation.test.js
-& 'C:\Program Files\nodejs\node.exe' --test respawn-order.test.js
+& 'C:\Program Files\nodejs\node.exe' --test tests/vine-navigation.test.js
+& 'C:\Program Files\nodejs\node.exe' --test tests/respawn-order.test.js
 ```
 
 Nodeの場所・バージョンが違う環境では読み替える。`run-tests.js` のNodeテスト引数が使える版かも確認する。
@@ -217,8 +217,8 @@ Nodeの場所・バージョンが違う環境では読み替える。`run-tests
 
 共有用コピーに含めるもの:
 
-- このMD、Bot本体直下の `.js`（テスト含む）、`package.json`、`package-lock.json`。
-- `minecraft-dictionary.json`、利用ガイド、起動バッチ、`start-local-ai.ps1`。
+- このMD、`src/` と `tests/` のコード、`package.json`、`package-lock.json`。
+- `src/minecraft-dictionary.json`、利用ガイド、起動バッチ、`start-local-ai.ps1`。
 - 非機密項目だけにした設定例。`.env.example`も内容を確認してから共有する。
 - 必要なら、認証コード・トークン・個人情報を除いた症状ログ。
 
